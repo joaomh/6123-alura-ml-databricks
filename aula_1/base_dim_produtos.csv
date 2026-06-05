@@ -1,0 +1,16 @@
+id_produto,nome_produto,categoria,preco_reais
+prod_101,Smartphone Celular Pro,Eletrônicos,2500.0
+prod_102,Notebook Gamer Nitro,Eletrônicos,5200.0
+prod_103,Fone de Ouvido Sem Fio,Eletrônicos,299.0
+prod_104,Caixa de Som Bluetooth,Eletrônicos,199.0
+prod_105,Smartwatch Esportivo,Eletrônicos,899.0
+prod_106,Camiseta Básica Algodão,Vestuário,79.9
+prod_107,Calça Jeans Slim Fit,Vestuário,149.9
+prod_108,Tênis de Corrida Confort,Calçados,349.9
+prod_109,Mochila Urbana Notebook,Acessórios,199.9
+prod_110,Cafeteira Cápsula Expresso,Eletrodomésticos,449.0
+prod_111,Liquidificador Turbo,Eletrodomésticos,189.9
+prod_112,Aspirador de Pó Vertical,Eletrodomésticos,299.0
+prod_113,Livro de Ficção Científica,Livros,49.9
+prod_114,Cadeira de Escritório Ergonômica,Móveis,799.0
+prod_115,Teclado Mecânico RGB,Eletrônicos,350.0
