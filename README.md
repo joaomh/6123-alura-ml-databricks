@@ -1,4 +1,4 @@
-# Formação Engenharia de Dados & Machine Learning no Databricks 🚀
+# Formação Engenharia de Dados & Machine Learning no Databricks
 
 Este repositório contém o projeto prático desenvolvido ao longo do curso, demonstrando a construção de um pipeline de dados completo de ponta a ponta utilizando a **Arquitetura Medallion** no **Databricks Lakehouse**, integrado à governança de dados do **Unity Catalog** e finalizando com um modelo preditivo.
 
