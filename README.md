@@ -11,8 +11,5 @@ O cenário simula uma plataforma de e-commerce que rastreia o comportamento de n
 * **Delta Lake** para garantia de transações ACID e recursos de auditoria/segurança como *Time Travel* (`RESTORE TABLE`).
 * **Unity Catalog** para governança de 3 níveis (`catálogo.esquema.tabela`).
 * **Git Folders (Databricks Repos)** para controle de versão integrado diretamente ao GitHub.
-
----
-
 ---
 *Este projeto foi desenvolvido como material didático para capacitação em Engenharia de Machine Learning*
