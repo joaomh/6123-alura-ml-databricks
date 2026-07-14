@@ -1,0 +1,54 @@
+resources:
+  jobs:
+    carga_produtiva_monitoramento:
+      name: carga_produtiva_monitoramento
+      tasks:
+        - task_key: carga_prod
+          notebook_task:
+            notebook_path: /Workspace/Users/<SEU_EMAIL>/aula_5_2_job_dados_prod
+            base_parameters:
+              data_inicio: "20260101"
+              data_fim: "20260301"
+            source: WORKSPACE
+        - task_key: monitoramento_drift
+          depends_on:
+            - task_key: carga_prod
+          notebook_task:
+            notebook_path: /Workspace/Users/<SEU_EMAIL>/aula_5_2_job_monitoramento_drift
+            base_parameters:
+              data_inicio: ""
+              data_fim: ""
+              features: renda_mensal_k,tempo_medio_clique_segundos
+              target: comprou_eletronico
+            source: WORKSPACE
+        - task_key: verificar_drift
+          depends_on:
+            - task_key: monitoramento_drift
+          notebook_task:
+            notebook_path: /Workspace/Users/<SEU_EMAIL>/verificar_drift
+            source: WORKSPACE
+        - task_key: condicao_drift
+          depends_on:
+            - task_key: verificar_drift
+          condition_task:
+            op: GREATER_THAN
+            left: "{{tasks.verificar_drift.values.total_drift}}"
+            right: "0"
+        - task_key: re_treino
+          depends_on:
+            - task_key: condicao_drift
+              outcome: "true"
+          notebook_task:
+            notebook_path: /Workspace/Users/<SEU_EMAIL>/aula_5_5_re_treino
+            base_parameters:
+              data_inicio: ""
+              data_fim: ""
+            source: WORKSPACE
+      queue:
+        enabled: true
+      parameters:
+        - name: data_inicio
+          default: ""
+        - name: data_fim
+          default: ""
+      performance_target: PERFORMANCE_OPTIMIZED
