@@ -1,0 +1,126 @@
+name: CI/CD Databricks - MLOps Pipeline
+
+on:
+  push:
+    # Dispara os deploys quando o código for mesclado (merge) nestas branches
+    branches:
+      - develop
+      - stage
+      - main
+  pull_request:
+    # Dispara verificações quando um PR é aberto CONTRA estas branches
+    branches:
+      - stage
+      - main
+
+jobs:
+  # ==============================================================
+  # JOB 1: DEPLOY DESENVOLVIMENTO (Dev)
+  # Roda apenas quando recebe um PUSH/Merge na branch 'develop'
+  # ==============================================================
+  deploy-dev:
+    name: Deploy to Development
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy no Ambiente Dev
+        run: |
+          echo "Fazendo o deploy dos assets no catálogo DEV..."
+          databricks bundle deploy -t dev
+          
+
+  # ==============================================================
+  # JOB 2: DEPLOY HOMOLOGAÇÃO E TESTE (Staging)
+  # Roda APENAS após o merge (push) na branch 'stage'
+  # ==============================================================
+  deploy-stag:
+    name: Deploy to Staging
+    # Exige exclusivamente que seja um evento de push na branch stage
+    if: github.event_name == 'push' && github.ref == 'refs/heads/stage'
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy no Ambiente Staging
+        run: |
+          echo "Fazendo o deploy dos assets no catálogo STAG..."
+          databricks bundle deploy -t stag
+
+      - name: Teste de Execução (Validação do Pipeline)
+        run: |
+          echo "Rodando o job no Databricks para garantir que não há erros de código..."
+          # nome do resource no arquivo do databricks
+          databricks bundle run job_teste_catalog -t stag
+
+  # ==============================================================
+  # JOB 3: VALIDAÇÃO DE PR PARA A MAIN (Regra de Segurança)
+  # Roda APENAS quando alguém abre um PR para a branch 'main'
+  # ==============================================================
+  validate-pr:
+    name: Validate PR Source (Security)
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bloquear se não vier da 'stage'
+        run: |
+          # A variável github.head_ref guarda o nome da branch de origem do PR
+          ORIGEM="${{ github.head_ref }}"
+          
+          if [ "$ORIGEM" != "stage" ]; then
+            echo "❌ ACESSO NEGADO: PRs para a branch 'main' só são aceitos se vierem da branch 'stage'!"
+            echo "Branch de origem atual: $ORIGEM"
+            exit 1
+          else
+            echo "✅ SUCESSO: O PR veio da branch 'stage'. Validação aprovada."
+          fi
+
+  # ==============================================================
+  # JOB 4: DEPLOY PRODUÇÃO (Prod)
+  # Roda APENAS após aprovação e Merge na branch 'main'
+  # ==============================================================
+  deploy-prod:
+    name: Deploy to Production
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy no Ambiente de Produção
+        run: |
+          echo "Fazendo o deploy oficial dos assets no catálogo PROD..."
+          databricks bundle deploy -t prod
+
+      - name: Execução Inicial (Prod)
+        run: |
+          echo "Executando a carga inicial na Produção..."
+          # nome do resource no arquivo do databricks
+          databricks bundle run job_teste_catalog -t prod
