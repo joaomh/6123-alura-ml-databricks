@@ -1,0 +1,44 @@
+# databricks.yml
+# nome do pipeline que estamos criando
+bundle:
+  name: pipeline_mlops_ingestao
+
+
+# iremos definir os 3 ambientes, dev, stage e prod
+variables:
+  env_catalog:
+    description: "O Catálogo (Catalog) alvo no Unity Catalog"
+    default: "dev"
+
+targets:
+  dev:
+    default: true
+    workspace:
+      host: https://dbc-0b9b6719-6175.cloud.databricks.com
+    variables:
+      env_catalog: "dev"
+
+  stag:
+    workspace:
+      host: https://dbc-0b9b6719-6175.cloud.databricks.com
+    variables:
+      env_catalog: "stag"
+
+  prod:
+    workspace:
+      host: https://dbc-0b9b6719-6175.cloud.databricks.com
+    variables:
+      env_catalog: "prod"
+
+# O Job de teste que será criado com o objetivo de criar os ambientes
+resources:
+  jobs:
+    job_teste_catalog:
+      name: "${bundle.target}_job_teste_criar_env"
+            
+      tasks:
+        - task_key: "criar_catalogos_dev_prod"
+          notebook_task:
+            notebook_path: "./src/ingestao.py"
+            base_parameters:
+              env_catalog: "${var.env_catalog}"
