@@ -9,8 +9,8 @@ from pyspark.sql.functions import col, avg, sum, first, lower, trim, to_date, wh
 from databricks.feature_engineering import FeatureEngineeringClient
 
 # Pega o parâmetro de ambiente injetado pelo YAML referente ao catalogo (dev, homlog, prod)
-#env_catalog = dbutils.widgets.get("env_catalog")
-env_catalog="dev"
+env_catalog = dbutils.widgets.get("env_catalog")
+
 esquema_gold = "gold"
 tabela_gold_eventos = f"{env_catalog}.{esquema_gold}.base_eventos_produto_gold"
 
