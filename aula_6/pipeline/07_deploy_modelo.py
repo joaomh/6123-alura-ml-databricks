@@ -8,14 +8,14 @@ import mlflow
 from datetime import datetime, timedelta
 
 # ==========================================
-# 1. PARÂMETROS DINÂMICOS DO WORKFLOW
+# 1. PARÂMETROS DINÂMICOS DO WORKFLOW E DATAS
 # ==========================================
 env_catalog = dbutils.widgets.get("env_catalog")
 
-# Pegando apenas o último dia informado pelo Job
+# 1. Pega a data exata passada pelo Job (ex: "20260110")
 p_fim_original = dbutils.widgets.get("data_fim")
 
-# converte para data e simula utilizando o D-1
+# 2. Converte para data, tira 1 dia e volta para string (ex: vira "20260109")
 data_obj = datetime.strptime(p_fim_original, "%Y%m%d")
 p_fim = (data_obj - timedelta(days=1)).strftime("%Y%m%d")
 
@@ -27,13 +27,13 @@ tabela_entrada = f"{env_catalog}.{esquema_gold}.base_tabela_prod"
 tabela_saida = f"{env_catalog}.{esquema_gold}.escoragem_propensao_compra"
 
 print(f"Iniciando Inferência em Lote (Batch Scoring).")
-print(f"Processando apenas o último dia informado: {p_fim}")
+print(f"Data recebida do Job: {p_fim_original} | Data processada (D-1): {p_fim}")
 print(f"Alvo: Tabela {tabela_saida}")
 
 # ==========================================
 # 2. CARREGAMENTO DOS DADOS NOVOS
 # ==========================================
-# Filtro exato para rodar apenas a partição do dia correspondente
+# Filtro exato para rodar apenas a partição do dia correspondente (D-1)
 df_novos_dados = spark.table(tabela_entrada).filter(
     F.col("dia_prtc") == p_fim
 )
@@ -51,9 +51,13 @@ print(f"Foram encontrados {qtd_dados} registros para receberem o score.")
 model_uri = f"models:/{nome_modelo}@Champion"
 print(f"Carregando o modelo preditivo: {model_uri}")
 
-# Criação da UDF (User Defined Function) do Spark
-# Isso distribui o modelo do MLflow para rodar em paralelo nos workers do cluster
-predict_udf = mlflow.pyfunc.spark_udf(spark, model_uri, result_type="double")
+# Criação da UDF (User Defined Function) do Spark com o env_manager corrigido
+predict_udf = mlflow.pyfunc.spark_udf(
+    spark, 
+    model_uri, 
+    result_type="double",
+    env_manager="local" # <-- Trava que corrige o erro do InvalidVersion
+)
 
 # Isolando as features usando a mesma lógica do treinamento para não quebrar o schema
 colunas_excluidas = ["dia_prtc", "id_unico", "comprou_eletronico"]
@@ -76,7 +80,7 @@ df_escorado = df_escorado.withColumn(
     F.when(F.col("score_propensao") >= 0.5, 1).otherwise(0)
 )
 
-# Selecionamos apenas o necessário para entregar à área de negócio (CRM, Marketing, etc)
+# Selecionamos apenas o necessário para entregar à área de negócio
 df_final_saida = df_escorado.select(
     "id_unico",
     "dia_prtc",
