@@ -107,8 +107,3 @@ except Exception:
 client.set_registered_model_alias(model_name, "Champion", nova_versao)
 
 print(f"Concluído! A inferência em produção usará automaticamente a Versão {nova_versao} do LightGBM.")
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC select * from dev.gold.base_tabela_prod
