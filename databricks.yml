@@ -3,7 +3,13 @@
 bundle:
   name: pipeline_mlops_ingestao
 
-
+sync:
+  exclude:
+    - "aula_2/**"       # Ignora tudo dentro da pasta aula_2
+    - "aula_3/**"     
+    - "aula_4/**"  
+    - "aula_5/**"  
+# ================================
 # iremos definir os 3 ambientes, dev, stage e prod
 variables:
   env_catalog:
