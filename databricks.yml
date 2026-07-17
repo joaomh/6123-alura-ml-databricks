@@ -39,6 +39,6 @@ resources:
       tasks:
         - task_key: "criar_catalogos_dev_prod"
           notebook_task:
-            notebook_path: "./src/ingestao.py"
+            notebook_path: "./aula_6/ingestao.py"
             base_parameters:
               env_catalog: "${var.env_catalog}"
