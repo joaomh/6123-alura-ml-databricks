@@ -1,10 +1,13 @@
 # Databricks notebook source
 # ==============================================================================
-%pip install databricks mlflow lightgbm
+%pip install databricks mlflow lightgbm pandas pyarrow
 dbutils.library.restartPython()
 
 import pyspark.sql.functions as F
+from pyspark.sql.types import DoubleType
 import mlflow
+import mlflow.lightgbm
+import pandas as pd
 from datetime import datetime, timedelta
 
 # ==========================================
@@ -12,16 +15,12 @@ from datetime import datetime, timedelta
 # ==========================================
 env_catalog = dbutils.widgets.get("env_catalog")
 
-# 1. Pega a data exata passada pelo Job (ex: "20260110")
 p_fim_original = dbutils.widgets.get("data_fim")
-
-# 2. Converte para data, tira 1 dia e volta para string (ex: vira "20260109")
 data_obj = datetime.strptime(p_fim_original, "%Y%m%d")
 p_fim = (data_obj - timedelta(days=1)).strftime("%Y%m%d")
 
 esquema_gold = "gold"
 
-# Nomenclaturas
 nome_modelo = f"{env_catalog}.{esquema_gold}.propensao_compra_modelo"
 tabela_entrada = f"{env_catalog}.{esquema_gold}.base_tabela_prod"
 tabela_saida = f"{env_catalog}.{esquema_gold}.escoragem_propensao_compra"
@@ -33,7 +32,6 @@ print(f"Alvo: Tabela {tabela_saida}")
 # ==========================================
 # 2. CARREGAMENTO DOS DADOS NOVOS
 # ==========================================
-# Filtro exato para rodar apenas a partição do dia correspondente (D-1)
 df_novos_dados = spark.table(tabela_entrada).filter(
     F.col("dia_prtc") == p_fim
 )
@@ -44,43 +42,54 @@ if qtd_dados == 0:
 
 print(f"Foram encontrados {qtd_dados} registros para receberem o score.")
 
-# ==========================================
-# 3. CARREGAMENTO DO MODELO @CHAMPION
-# ==========================================
-# A URI do Unity Catalog para consumir a versão em produção automaticamente
-model_uri = f"models:/{nome_modelo}@Champion"
-print(f"Carregando o modelo preditivo: {model_uri}")
-
-# Criação da UDF (User Defined Function) do Spark com o env_manager corrigido
-predict_udf = mlflow.pyfunc.spark_udf(
-    spark, 
-    model_uri, 
-    result_type="double",
-    env_manager="local" # <-- Trava que corrige o erro do InvalidVersion
-)
-
-# Isolando as features usando a mesma lógica do treinamento para não quebrar o schema
+# Isolando as features
 colunas_excluidas = ["dia_prtc", "id_unico", "comprou_eletronico"]
 features_modelo = [c for c in df_novos_dados.columns if c not in colunas_excluidas]
+
+# ==========================================
+# 3. WORKAROUND SERVERLESS: CLOSURE PANDAS UDF
+# ==========================================
+# 1. Baixa o modelo no DRIVER (Ignora o bloqueio do Unity Catalog nos workers)
+model_uri = f"models:/{nome_modelo}@Champion"
+print(f"Baixando o modelo no Driver: {model_uri}")
+
+# Carrega o modelo LightGBM para a memória do nó principal
+modelo_local = mlflow.lightgbm.load_model(model_uri)
+
+# 2. Criamos nossa própria UDF vetorizada em Pandas
+# O PySpark empacota a variável 'modelo_local' do escopo externo via Closure
+@F.pandas_udf(DoubleType())
+def predict_udf_custom(*cols: pd.Series) -> pd.Series:
+    import pandas as pd 
+    
+    # Reconstrói as colunas em um DataFrame Pandas
+    df_features = pd.concat(cols, axis=1)
+    df_features.columns = features_modelo
+    
+    # O modelo_local é chamado diretamente aqui de dentro.
+    # O LightGBM retorna nativamente um array 1D com as probabilidades
+    preds = modelo_local.predict(df_features)
+    
+    return pd.Series(preds)
 
 # ==========================================
 # 4. APLICAÇÃO DO MODELO E REGRAS DE NEGÓCIO
 # ==========================================
 print("Aplicando o algoritmo aos dados produtivos...")
 
-# Passamos a lista de colunas dinamicamente para a UDF
+# Injetamos a lista dinâmica de colunas na UDF personalizada
 df_escorado = df_novos_dados.withColumn(
     "score_propensao", 
-    predict_udf(*[F.col(c) for c in features_modelo])
+    predict_udf_custom(*[F.col(c) for c in features_modelo])
 )
 
-# Criação de uma flag de negócio (Exemplo: probabilidade acima de 50% = alta propensão)
+# Criação da flag de negócio (probabilidade >= 50% = 1)
 df_escorado = df_escorado.withColumn(
     "flag_propensao_alta",
     F.when(F.col("score_propensao") >= 0.5, 1).otherwise(0)
 )
 
-# Selecionamos apenas o necessário para entregar à área de negócio
+# Seleção de campos para entrega
 df_final_saida = df_escorado.select(
     "id_unico",
     "dia_prtc",
