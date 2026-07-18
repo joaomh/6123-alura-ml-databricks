@@ -79,22 +79,15 @@ print("Aplicando o algoritmo aos dados produtivos...")
 
 # Injetamos a lista dinâmica de colunas na UDF personalizada
 df_escorado = df_novos_dados.withColumn(
-    "score_propensao", 
+    "flag_propensao", 
     predict_udf_custom(*[F.col(c) for c in features_modelo])
-)
-
-# Criação da flag de negócio (probabilidade >= 50% = 1)
-df_escorado = df_escorado.withColumn(
-    "flag_propensao_alta",
-    F.when(F.col("score_propensao") >= 0.5, 1).otherwise(0)
 )
 
 # Seleção de campos para entrega
 df_final_saida = df_escorado.select(
     "id_unico",
     "dia_prtc",
-    "score_propensao",
-    "flag_propensao_alta",
+    "flag_propensao",
     F.current_timestamp().alias("timestamp_escoragem")
 )
 
