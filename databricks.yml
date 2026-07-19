@@ -64,7 +64,7 @@ resources:
           depends_on:
             - task_key: ingestao_dados
           notebook_task:
-            notebook_path: ".aula_6/aula_6/pipeline/02_pre_processamento"
+            notebook_path: ".aula_6/aula_6/pipeline/02_pre_processamento.py"
             base_parameters:
               env_catalog: "${var.env_catalog}"
             source: WORKSPACE
@@ -73,7 +73,7 @@ resources:
           depends_on:
             - task_key: pre_processamento
           notebook_task:
-            notebook_path: ".aula_6/aula_6/pipeline/03_treinamento_modelo"
+            notebook_path: ".aula_6/aula_6/pipeline/03_treinamento_modelo.py"
             base_parameters:
               env_catalog: "${var.env_catalog}"
             source: WORKSPACE
@@ -82,7 +82,7 @@ resources:
           depends_on:
             - task_key: treinamento
           notebook_task:
-            notebook_path: ".aula_6/aula_6/pipeline/04_gerando_dados_produtivos"
+            notebook_path: ".aula_6/aula_6/pipeline/04_gerando_dados_produtivos.py"
             base_parameters:
               env_catalog: "${var.env_catalog}"
             source: WORKSPACE
@@ -91,7 +91,7 @@ resources:
           depends_on:
             - task_key: dados_prod
           notebook_task:
-            notebook_path: ".aula_6/aula_6/pipeline/05_monitoramento_drift"
+            notebook_path: ".aula_6/aula_6/pipeline/05_monitoramento_drift.py"
             base_parameters:
               env_catalog: "${var.env_catalog}"
               data_inicio: "{{tasks.dados_prod.values.data_inicio}}"
@@ -110,7 +110,7 @@ resources:
             - task_key: check_re_treino
               outcome: "true"
           notebook_task:
-            notebook_path: ".aula_6/aula_6/pipeline/06_re_treino"
+            notebook_path: ".aula_6/aula_6/pipeline/06_re_treino.py"
             base_parameters:
               env_catalog: "${var.env_catalog}"
               data_inicio: "{{tasks.dados_prod.values.data_inicio}}"
@@ -124,7 +124,7 @@ resources:
               outcome: "false"
           run_if: AT_LEAST_ONE_SUCCESS
           notebook_task:
-            notebook_path: ".aula_6/aula_6/pipeline/07_deploy_modelo"
+            notebook_path: ".aula_6/aula_6/pipeline/07_deploy_modelo.py"
             base_parameters:
               env_catalog: "${var.env_catalog}"
               data_fim: "{{tasks.dados_prod.values.data_fim}}"
