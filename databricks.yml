@@ -37,14 +37,104 @@ targets:
       env_catalog: "prod"
 
 # O Job de teste que será criado com o objetivo de criar os ambientes
+# resources:
+#   jobs:
+#     job_teste_catalog:
+#       name: "${bundle.target}_job_teste_criar_env"
+            
+#       tasks:
+#         - task_key: "criar_catalogos_dev_prod"
+#           notebook_task:
+#             notebook_path: "./aula_6/ingestao.py"
+#             base_parameters:
+#               env_catalog: "${var.env_catalog}"
 resources:
   jobs:
-    job_teste_catalog:
-      name: "${bundle.target}_job_teste_criar_env"
-            
+    pipeline_completo_mlops:
+      name: "${bundle.target}_pipeline_completo_mlops"
       tasks:
-        - task_key: "criar_catalogos_dev_prod"
+        - task_key: ingestao_dados
           notebook_task:
-            notebook_path: "./aula_6/ingestao.py"
+            notebook_path: ".aula_6/pipeline/01_ingestao_dados"
             base_parameters:
               env_catalog: "${var.env_catalog}"
+            source: WORKSPACE
+          environment_key: Default
+        - task_key: pre_processamento
+          depends_on:
+            - task_key: ingestao_dados
+          notebook_task:
+            notebook_path: ".aula_6/aula_6/pipeline/02_pre_processamento"
+            base_parameters:
+              env_catalog: "${var.env_catalog}"
+            source: WORKSPACE
+          environment_key: Default
+        - task_key: treinamento
+          depends_on:
+            - task_key: pre_processamento
+          notebook_task:
+            notebook_path: ".aula_6/aula_6/pipeline/03_treinamento_modelo"
+            base_parameters:
+              env_catalog: "${var.env_catalog}"
+            source: WORKSPACE
+          environment_key: Default
+        - task_key: dados_prod
+          depends_on:
+            - task_key: treinamento
+          notebook_task:
+            notebook_path: ".aula_6/aula_6/pipeline/04_gerando_dados_produtivos"
+            base_parameters:
+              env_catalog: "${var.env_catalog}"
+            source: WORKSPACE
+          environment_key: Default
+        - task_key: monitoramento_drift
+          depends_on:
+            - task_key: dados_prod
+          notebook_task:
+            notebook_path: ".aula_6/aula_6/pipeline/05_monitoramento_drift"
+            base_parameters:
+              env_catalog: "${var.env_catalog}"
+              data_inicio: "{{tasks.dados_prod.values.data_inicio}}"
+              data_fim: "{{tasks.dados_prod.values.data_fim}}"
+            source: WORKSPACE
+          environment_key: Default
+        - task_key: check_re_treino
+          depends_on:
+            - task_key: monitoramento_drift
+          condition_task:
+            op: EQUAL_TO
+            left: "{{tasks.monitoramento_drift.values.drift_detectado}}"
+            right: "true"
+        - task_key: re_treino_modelo
+          depends_on:
+            - task_key: check_re_treino
+              outcome: "true"
+          notebook_task:
+            notebook_path: ".aula_6/aula_6/pipeline/06_re_treino"
+            base_parameters:
+              env_catalog: "${var.env_catalog}"
+              data_inicio: "{{tasks.dados_prod.values.data_inicio}}"
+              data_fim: "{{tasks.dados_prod.values.data_fim}}"
+            source: WORKSPACE
+          environment_key: Default
+        - task_key: deploy_modelo
+          depends_on:
+            - task_key: re_treino_modelo
+            - task_key: check_re_treino
+              outcome: "false"
+          run_if: AT_LEAST_ONE_SUCCESS
+          notebook_task:
+            notebook_path: ".aula_6/aula_6/pipeline/07_deploy_modelo"
+            base_parameters:
+              env_catalog: "${var.env_catalog}"
+              data_fim: "{{tasks.dados_prod.values.data_fim}}"
+            source: WORKSPACE
+          environment_key: Default
+      queue:
+        enabled: true
+      environments:
+        - environment_key: Default
+          spec:
+            environment_version: "5"
+      performance_target: PERFORMANCE_OPTIMIZED
+
