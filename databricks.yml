@@ -55,7 +55,7 @@ resources:
       tasks:
         - task_key: ingestao_dados
           notebook_task:
-            notebook_path: ".aula_6/pipeline/01_ingestao_dados.py"
+            notebook_path: "./aula_6/pipeline/01_ingestao_dados.py"
             base_parameters:
               env_catalog: "${var.env_catalog}"
             source: WORKSPACE
