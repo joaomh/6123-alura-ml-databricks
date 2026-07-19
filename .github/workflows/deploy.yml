@@ -70,7 +70,7 @@ jobs:
         run: |
           echo "Rodando o job no Databricks para garantir que não há erros de código..."
           # nome do resource no arquivo do databricks
-          databricks bundle run job_teste_catalog -t stag
+          databricks bundle run pipeline_completo_mlops -t stag
 
   # ==============================================================
   # JOB 3: VALIDAÇÃO DE PR PARA A MAIN (Regra de Segurança)
@@ -123,4 +123,4 @@ jobs:
         run: |
           echo "Executando a carga inicial na Produção..."
           # nome do resource no arquivo do databricks
-          databricks bundle run job_teste_catalog -t prod
+          databricks bundle run pipeline_completo_mlops -t prod
